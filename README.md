@@ -4,10 +4,11 @@ This repository explores **instruction tuning techniques** for large language mo
 
 ## Project Structure
 
-Each stage of the project is organized in its own directory:
-├── 01-single-gpu/
-└── ... work in progress ..
-
+Each stage of the project is organized in its own directory: 
+```
+├── 01-single-gpu/ 
+└── ... work in progress .. 
+```
 To run a specific stage, navigate to the corresponding folder (e.g., `01-single-gpu`) and follow the usage instructions in that folder’s `README.md`.
 
 ## Requirements
