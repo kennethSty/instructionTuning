@@ -1,0 +1,6 @@
+*.png
+*.pt
+*wandb/
+*outputs/
+*.nfs*
+*__pycache__/
