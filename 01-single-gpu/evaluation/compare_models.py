@@ -17,7 +17,6 @@ def generate_response(model, data_provider, instruction, device, model_name="Mod
     prompt_log = (
         f"\n{'-'*20} {model_name} {'-'*20}\n"
         f"Input: {instruction}\n"
-        f"Formatted prompt: {input_text_with_format}"
     )
     LOGGER.info(prompt_log)
 
