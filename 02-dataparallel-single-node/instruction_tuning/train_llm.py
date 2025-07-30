@@ -3,6 +3,7 @@ import torch
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing.errors import record
 from transformers import AutoModelForCausalLM
+from torch.nn.parallel import DistributedDataParallel
 
 from helper.logger import setup_logger
 from helper.utils import get_parser, rank0_first
@@ -28,13 +29,15 @@ def main():
 
     seed = torch.manual_seed(args.seed)
 
+    # Load model & setup implicit synching gradients via mean allreduce before optim. steps
     with rank0_first(), device:
             model = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=dtype)
+    model = DistributedDataParallel(model, device_ids=[local_rank])
     logging.info(
        f"Using {args.model_name} model with {sum(p.numel() for p in model.parameters())} params"
     ) 
 
-    #more logic follows
+    
     
     dist.destroy_process_group()
     
