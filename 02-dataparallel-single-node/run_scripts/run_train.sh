@@ -21,7 +21,7 @@ tmux new-session -s "$SESSION_NAME" -c "$(pwd)" bash -c "
 		--response_col_name output \
 		--test_split 0.1 
     echo ''
-    echo 'Training completed at: \$(date)'
-    echo 'Press any key to exit the temux session'
+    echo \"Training completed at: \$(date)\"
+    echo Press any key to exit the temux session
     read -n 1
 "
