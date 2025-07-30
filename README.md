@@ -1,6 +1,6 @@
 # Instruction Tuning with Increasing Scale
 
-This repository explores **instruction tuning techniques** for large language models. It starts with a minimal single-GPU setup and gradually introduces more advanced parallelization strategies to enable efficient large-scale training on an NVIDIA DGX system.
+This repository (work in progress) explores **instruction tuning techniques** for large language models. It starts with a minimal single-GPU setup and gradually introduces more advanced parallelization strategies to enable efficient large-scale training on an NVIDIA DGX system.
 
 ## Project Structure
 
