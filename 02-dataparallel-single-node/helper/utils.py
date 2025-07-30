@@ -1,5 +1,7 @@
 import argparse
 import torch
+from contextlib import contextmanager
+import torch.distributed as dist
 
 def get_parser() -> argparse.ArgumentParser: 
     parser = argparse.ArgumentParser()
@@ -22,3 +24,18 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--log_freq", default=100)
     
     return parser
+
+@contextmanager
+def rank0_first():
+    """
+    Context executing whatever is within the context on rank 0 first.
+    IMPORTANT: assumes dist.init_process_group() is already called. 
+    Otherwise no rank and dist information is available
+    """
+    rank = dist.get_rank()
+    if rank == 0:
+        yield #execute code within context here
+    dist.barrier()
+    if rank > 0:
+        yield #execute code within context here
+    dist.barrier()
