@@ -11,17 +11,28 @@ The structure of the directory is the following:
 6. `run_scripts`: contains shell scripts that execute evaluation or training scripts with CLI arguments.
 
 ## Usage
+Before executing the scripts, modify their executable permissions. 
+```
+chmod +x ./run_scripts/run_train_tmux.sh
+chmod +x ./run_scripts/run_compare.sh
+```
+
 Remain in the source directory and execute:
 ```
 ./run_scripts/run_train_tmux.sh
 ```
-This will execute a run on you available NVIDIA GPU in a tmux session from which you can detach.
+This will execute a run on your available NVIDIA GPU in a tmux session from which you can detach.
 **Note:**
 It is assumed that you logged into you weights and biases account before executing the scripts. 
 If not done, do so via `wandb login`
+**Note:**
+If you did not modify the permission of the shell scripts as an executable, you might need to run:
+```
+bash ./run_scripts/run_train_tmux.sh
+```
 
 ## Example Result
-To compare the performance of the base model with your instruction tuned version say `gpt2-specialPAD-alpaca-single-gpu-2025-07-28T10-57-47` run:
+To compare the performance of the base model with your instruction-tuned version, say `gpt2-specialPAD-alpaca-single-gpu-2025-07-28T10-57-47` run:
 ```
 ./run_scripts/run_compare.sh gpt2-specialPAD-alpaca-single-gpu-2025-07-28T10-57-47
 ```
