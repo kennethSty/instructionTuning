@@ -6,6 +6,13 @@ import logging
 import multiprocessing
 
 class PreProcessor:
+    """
+    A utility class for preprocessing instruction-response datasets for language model fine-tuning.
+
+    This class handles tokenizer setup, special token configuration, dataset formatting, tokenization, 
+    and filtering based on the model's context window. Special tokens like [PAD] and EOS are automatically 
+    managed and made accessible through getter methods.
+    """
     def __init__(self, args: Dict, config: AutoConfig):
         self.__args = args
         self.__config = config
@@ -27,8 +34,14 @@ class PreProcessor:
     def encode(self, text, **kwargs):
         return self.__tokenizer(text, **kwargs)
 
+    def batch_encode(self, batch, **kwargs):
+        return self.__tokenizer.batch_encode(batch, **kwargs)
+
+    def batch_decode(self, batch, **kwargs):
+        return self.__tokenizer.batch_decode(batch, **kwargs)
+
     def decode(self, token_ids, **kwargs):
-        return self.__tokenizer.decode(text, **kwargs)
+        return self.__tokenizer.decode(token_ids, **kwargs)
 
     def get_pad_token_id(self):
         return self.__tokenizer.pad_token_id
