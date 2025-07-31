@@ -1,7 +1,7 @@
 from argparse import Namespace
 from transformers import AutoConfig
 import torch.distributed as dist
-from data_preparation.DataProvider import DataProvider
+from data_preparation.DistributedDataProvider import DistributedDataProvider
 from helper.utils import rank0_first
 from helper.logger import setup_logger
 def main():
@@ -23,7 +23,7 @@ def main():
     config = AutoConfig.from_pretrained(args.model_name)
     
     with rank0_first():
-        data_provider = DataProvider(args, config)
+        data_provider = DistributedDataProvider(args, config)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,15 @@
 from typing import Dict, List, Tuple
 import torch
 import logging
+import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from data_preparation.PreProcessor import PreProcessor
 
-class DataProvider:
+class DistributedDataProvider:
     def __init__(self, args, config):
         self.__preprocessor = PreProcessor(args, config)
+        self.__rank = dist.get_rank()
         self.__build_loaders(args)
         self.log_data_sanity_check()
 
@@ -15,11 +17,10 @@ class DataProvider:
         return self.__train_loader, self.__test_loader
     
     def log_data_sanity_check(self):
-        log = "\n============FINISHED PREPROCESSING DATA===============\n"
-        log += "\n============PRINTING SAMPLES===============\n"
+        log = f"\n============RANK {self.__rank} PRINTING SAMPLES===============\n"
         for batch in self.__train_loader:
             log += self.__get_instance_text(batch)
-            log += "\n============FINISHED PRINTING SAMPLES===============\n"
+            log += f"\n============ RANK {self.__rank} FINISHED PRINTING SAMPLES===============\n"
             logging.info(log)
             return
 
@@ -28,18 +29,26 @@ class DataProvider:
         data = self.__preprocessor.get_preprocessed_data()
         split = data.train_test_split(test_size=args.test_split)
 
+        train_sampler = DistributedSampler(split["train"], shuffle=True, drop_last=True)
         self.__train_loader = DataLoader(
             split["train"],
             batch_size=args.batch_size,
-            sampler=DistributedSampler(split["train"], shuffle=True, drop_last=True),
+            sampler=train_sampler,
             collate_fn=self.__custom_collate_function
         )
 
+        test_sampler = DistributedSampler(split["test"], shuffle=True, drop_last=True)
         self.__test_loader = DataLoader(
             split["test"],
             batch_size=args.batch_size,
-            sampler=DistributedSampler(split["test"], shuffle=True, drop_last=True),
+            sampler=test_sampler,
             collate_fn=self.__custom_collate_function
+        )
+
+        logging.info(
+            f"\n ============= RANK {self.__rank} DATALOADER STATS ======================= \n"
+            f"\n Rank {self.__rank} processes {train_sampler.num_samples}/{len(split['train'])} train instances\n"   
+            f"\n Rank  {self.__rank} processes {test_sampler.num_samples}/{len(split['test'])} test instances \n"
         )
 
     def __custom_collate_function(self, batch: List[Dict], 
@@ -88,7 +97,7 @@ class DataProvider:
             log += "\n********new instance*********\n"
             log += "INPUT TEXT:"
             log += "\n----------------\n"
-            log += input_text
+            log += input_text + "\n"
             log += "\n LABEL TEXT:"
             log += "\n---------------\n"
             log += label_text
@@ -98,9 +107,9 @@ class DataProvider:
         log += "\n============Printing 1 Tokenized Training Instance=============\n"
         for input_tokens, label_tokens in zip(batch[0], batch[1]):
             log += "\n********new instance*********\n"
-            "INPUT TOKENS:"
+            log += "INPUT TOKENS:"
             log += "\n----------------\n"
-            log += str(input_tokens)
+            log += str(input_tokens) + "\n"
             log += "\n LABEL TOKENS:"
             log += "\n---------------\n"
             log += str(label_tokens)
