@@ -2,11 +2,12 @@ import logging
 import torch
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing.errors import record
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoConfig
 from torch.nn.parallel import DistributedDataParallel
 
 from helper.logger import setup_logger
 from helper.utils import get_parser, rank0_first
+from data_preparation.DataProvider import DataProvider
 
 
 @record
@@ -31,7 +32,10 @@ def main():
 
     # Load model & setup implicit synching gradients via mean allreduce before optim. steps
     with rank0_first(), device:
-            model = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=dtype)
+        config = AutoConfig.from_pretrained(args.model_name)
+        data_provider = DataProvider(args=args, config=config)
+        model = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=dtype)
+
     model = DistributedDataParallel(model, device_ids=[local_rank])
     logging.info(
        f"Using {args.model_name} model with {sum(p.numel() for p in model.parameters())} params"
