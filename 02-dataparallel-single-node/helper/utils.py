@@ -19,11 +19,13 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("-b", "--batch_size", default=16, type=int)
     parser.add_argument("--num_epochs", default=1, type=int)
     parser.add_argument("--max_length", default=1024, type=int)
+    parser.add_argument("--ignore_token_id", default=-100, type=int)
     parser.add_argument("--seed", default=42, type=int)
     parser.add_argument("--checkp_freq", default=500)
     parser.add_argument("--log_freq", default=100)
     
     return parser
+
 
 @contextmanager
 def rank0_first():
@@ -39,3 +41,18 @@ def rank0_first():
     if rank > 0:
         yield #execute code within context here
     dist.barrier()
+
+
+
+def load_model_lr_state(model, lr_scheduler, state, exp_dir, device):
+    """Loads model, state and learning rate scheduler states from a prev. run inplace"""
+    model.load_state_dict(
+        torch.load(exp_dir/"model.pt", map_location=device, weights_only=True)
+    )
+    lr_scheduler.load_state_dict(
+        torch.load(exp_dir/"lr_scheduler.pt", map_location=device, weights_only=True)
+    )
+
+    with open(exp_dir/"state.json") as f:
+        state = json.load(f)
+    
