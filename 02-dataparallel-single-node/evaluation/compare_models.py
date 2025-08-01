@@ -2,6 +2,9 @@ from pathlib import Path
 from transformers import AutoModelForCausalLM, AutoConfig, AutoTokenizer
 import torch
 import logging 
+import torch.distributed as dist
+from helper.logger import setup_logger
+from torch.distributed.elastic.multiprocessing.errors import record
 
 from helper.utils import get_parser
 from data_preparation.DistributedDataProvider import DistributedDataProvider
@@ -70,12 +73,17 @@ def test_instructions(finetuned_model, distributed_data_provider, device, base_m
 
         logging.info(f"\n{'='*50}")
 
+@record
 def main():
+    dist.init_process_group()
+    rank = dist.get_rank()
+    setup_logger(rank=rank)
+    
     parser = get_parser()
     args = parser.parse_args()
     config = AutoConfig.from_pretrained(args.model_name)
     exp_dir = Path(f"{args.save_dir}/{args.experiment_name}")
-    device = torch.device(args.device)
+    device = torch.device("cuda")
     dtype = torch.float32
 
     intro_log = (
@@ -84,8 +92,8 @@ def main():
         f"{'='*80}"
     )
     logging.info(intro_log)
-
-    data_provider = DataProvider(args, config)
+    
+    data_provider = DistributedDataProvider(args, config)
 
     logging.info("\nLoading original pretrained model...")
     base_model = AutoModelForCausalLM.from_pretrained(
@@ -103,22 +111,26 @@ def main():
     finetuned_model = AutoModelForCausalLM.from_pretrained(
         args.model_name, 
         torch_dtype=dtype
-    )
-    if data_provider.is_pad_added_manually():
+    ).to(device)
+    if data_provider.pad_is_added():
         finetuned_model.resize_token_embeddings(data_provider.get_vocab_size())
-    finetuned_model.load_state_dict(
-        torch.load(exp_dir/"model.pt", map_location=device, weights_only=true)
-    )
+    
+    # Load weights into model (remove module. appended by DistributedDataParallel in keys)
+    state_dict = torch.load(exp_dir/"model.pt", map_location=device, weights_only=True)
+    state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+    finetuned_model.load_state_dict(state_dict)
+    finetuned_model.to(device)
     logging.info(f"Loaded instruction-tuned model")
 
     test_instructions(
         finetuned_model=finetuned_model, 
-        data_provider=data_provider,
+        distributed_data_provider=data_provider,
         device=device,
         base_model=base_model
     )
 
     logging.info(f"\n{'='*80}\nCOMPARISON COMPLETE!\n{'='*80}")
+    dist.destroy_process_group()
 
 if __name__ == "__main__":
     main()
