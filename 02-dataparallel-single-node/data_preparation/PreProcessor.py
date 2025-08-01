@@ -55,9 +55,15 @@ class PreProcessor:
     def __set_pad_token(self):
         if self.__tokenizer.pad_token_id is None:
             self.__tokenizer.add_special_tokens({"pad_token": "[PAD]"})
-            self.is_pad_added = True
+            self.__pad_is_added = True
 
         logging.info(f"\n Using padtoken: {self.__tokenizer.pad_token}")
+
+    def pad_is_added(self):
+        return self.__pad_is_added
+
+    def get_vocab_size(self):
+        return len(self.__tokenizer)
 
     def __preprocess(self, dataset):
         return dataset\
