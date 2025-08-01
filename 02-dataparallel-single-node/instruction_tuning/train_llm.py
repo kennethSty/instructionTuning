@@ -67,7 +67,7 @@ def main():
         ddp_model.parameters(), optimizer_class=torch.optim.AdamW, lr=args.lr, weight_decay=args.weight_decay
     )
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=len(distributed_train_loader) * args.num_epochs, eta_min=args.lr * 1e-1
+        optimizer, T_max=len(distributed_train_loader) * args.num_epochs, eta_min=args.lr * 0.1
     )
     logging.info(
         f"Optimizer: {optimizer}"

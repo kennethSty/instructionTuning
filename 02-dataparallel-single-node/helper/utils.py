@@ -17,7 +17,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--test_split", default=None, required=True, type=float)
     
     parser.add_argument("--lr", default=1e-5)
-    parser.add_argument("--weight_decay", default=0.1)
+    parser.add_argument("--weight_decay", default=0.01)
     parser.add_argument("--dtype", default=torch.float32)
     parser.add_argument("--save_dir", default="../outputs")
     parser.add_argument("-b", "--batch_size", default=16, type=int)
@@ -66,7 +66,7 @@ def log_and_update_state(state, timers, step_i, lr_scheduler, train_loader, args
     timing_dict = {f"Avg. time (ms) per {name}": timer.get_avg_elapsed_ms() for name, timer in timers.items()}
     log_dict = {
         "global_step": state["global_step"],
-        "lr": args.lr,
+        "lr": lr_scheduler.get_last_lr()[0],
         "running_loss": state["running_loss"] / args.log_freq, # Avg loss over log_freq steps
         "epoch": state["epoch"],
         "epoch_progress": state["epoch_step"]/len(train_loader),
