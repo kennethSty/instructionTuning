@@ -15,7 +15,28 @@ class DistributedDataProvider:
 
     def get_loaders(self) -> Tuple[DataLoader, DataLoader]:
         return self.__train_loader, self.__test_loader
-    
+  
+    def pad_is_added(self):
+        return self.__preprocessor.pad_is_added()
+
+    def get_pad_token_id(self):
+        return self.__preprocessor.get_pad_token_id()
+
+    def get_eos_token_id(self):
+        return self.__preprocessor.get_eos_token_id()
+
+    def get_ignore_token_id(self):
+        return self.__preprocessor.get_ignore_token_id()
+
+    def get_vocab_size(self):
+        return self.__preprocessor.get_vocab_size()
+
+    def get_num_train_batches(self):
+        return len(self.__train_loader)
+
+    def get_train_test_size(self):
+        return self.__size_train_data, self.__size_test_data
+
     def log_data_sanity_check(self):
         log = f"\n============RANK {self.__rank} PRINTING SAMPLES===============\n"
         for batch in self.__train_loader:
@@ -23,6 +44,12 @@ class DistributedDataProvider:
             log += f"\n============ RANK {self.__rank} FINISHED PRINTING SAMPLES===============\n"
             logging.info(log)
             return
+
+    def encode(self, text, **kwargs):
+        return self.__preprocessor.encode(text, **kwargs)
+
+    def decode(self, token_ids, **kwargs):
+        return self.__preprocessor.decode(token_ids, **kwargs)
 
     def __build_loaders(self, args: Dict):
         assert args.test_split <= 1.0 and args.test_split >= 0
@@ -36,6 +63,7 @@ class DistributedDataProvider:
             sampler=train_sampler,
             collate_fn=self.__custom_collate_function
         )
+        self.__size_train_data = len(split["train"])
 
         test_sampler = DistributedSampler(split["test"], shuffle=True, drop_last=True)
         self.__test_loader = DataLoader(
@@ -44,6 +72,7 @@ class DistributedDataProvider:
             sampler=test_sampler,
             collate_fn=self.__custom_collate_function
         )
+        self.__size_test_data = len(split["test"])
 
         logging.info(
             f"\n ============= RANK {self.__rank} DATALOADER STATS ======================= \n"

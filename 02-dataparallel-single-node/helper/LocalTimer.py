@@ -6,26 +6,26 @@ class LocalTimer:
         self.__synchronize = self.__set_synchronize(device)
         self.__measurements = []
 
-    def __set_synchronize(device: torch.device):
+    def __set_synchronize(self, device: torch.device):
         """
         Synchronizes all threads within a given device. Important to determine a clear starttime for on-device processes.
         Scope is for the provided device only, ensuring other devices are not idle due to synchronizing one device.
         """
         if device.type == "cuda":
             return lambda: torch.cuda.synchronize(device=device)
-        if else:
+        else:
             return lambda: torch.cpu.synchronize(device=device)
 
     def __enter__(self):
         self.__synchronize()
         self.__start_time = time.time()
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_value, traceback):
         # Only measure time if within "with" statement no exception occured
         if traceback is None: 
             self.__synchronize()
             end_time = time.time()
-            elapsed_time = self.start_time - end_time
+            elapsed_time = end_time - self.__start_time
             self.__measurements.append(elapsed_time)
 
         self.__start_time = None
