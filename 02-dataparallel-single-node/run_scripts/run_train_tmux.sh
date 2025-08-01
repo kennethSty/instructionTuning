@@ -16,7 +16,9 @@ tmux new-session -s "$SESSION_NAME" -c "$(pwd)" bash -c "
 		--dataset_name tatsu-lab/alpaca \
 		--instruction_col_name instruction \
 		--response_col_name output \
-		--test_split 0.1		
+		--num_epochs 20 \
+		--test_split 0.05 \
+		--batch_size 16		
 	echo ''
     	echo \"Training completed at: \$(date)\"
     	echo Press any key to exit the temux session
