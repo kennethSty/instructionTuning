@@ -147,6 +147,7 @@ def train_ddp_model(
         
         # Create iterable so that we can time batch construction
         distributed_train_loader, _ = distributed_data_provider.get_loaders()
+        distributed_train_loader.sampler.set_epoch(state["epoch"]) #Make sampler shuffle differently in every epoch
         distributed_train_batches = iter(distributed_train_loader)
 
         for step_i in range(len(distributed_train_loader)):
