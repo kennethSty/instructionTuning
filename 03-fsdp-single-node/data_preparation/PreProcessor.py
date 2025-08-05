@@ -7,7 +7,8 @@ import multiprocessing
 
 class PreProcessor:
     """
-    A utility class for preprocessing instruction-response datasets for language model fine-tuning.
+    A utility class encapsulating tools needed for preprocessing instruction-response datasets 
+    for language model fine-tuning. Created to be lean and not store any data
 
     This class handles tokenizer setup, special token configuration, dataset formatting, tokenization, 
     and filtering based on the model's context window. Special tokens like [PAD] and EOS are automatically 
@@ -22,14 +23,14 @@ class PreProcessor:
         self.__label_col_name = "labels"
         self.__set_pad_token()
         self.__max_length = self.__get_max_length()
-        self.preprocessed_dataset = self.__preprocess(
-            datasets.load_dataset(args.dataset_name, trust_remote_code=True)["train"]
-        )
         self.is_pad_added = False
 
 
     def get_preprocessed_data(self):
-        return self.preprocessed_dataset
+        return self.__preprocess(
+            datasets.load_dataset(self.__args.dataset_name, trust_remote_code=True)["train"]
+        )
+
 
     def encode(self, text, **kwargs):
         return self.__tokenizer.encode(text, **kwargs)

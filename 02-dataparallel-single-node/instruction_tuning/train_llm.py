@@ -34,7 +34,6 @@ def main():
     world_size = dist.get_world_size()
     setup_logger(rank=rank)
     logging.info(f"Setting up rank {rank} out of {world_size} ranks")
-    print(f"=============== RankyRanky: {rank}======================")
     
     #setup directory
     exp_dir = Path(f"{args.save_dir}/{args.experiment_name}")

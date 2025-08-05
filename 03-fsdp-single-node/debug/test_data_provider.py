@@ -1,0 +1,33 @@
+from argparse import Namespace
+from transformers import AutoConfig
+import torch.distributed as dist
+from data_preparation.DistributedDataProvider import DistributedDataProvider
+from helper.utils import rank0_first
+from helper.logger import setup_logger
+def main():
+    args = Namespace(
+        experiment_name="data test",
+        model_name="openai-community/gpt2",
+        dataset_name="tatsu-lab/alpaca",
+        test_split=0.2,
+        max_length=1024,
+        ignore_token_id=-100,
+        response_col_name="output",
+        instruction_col_name="instruction",
+        batch_size=8,
+        mask_instruction=True,
+        shift_labels=False
+    )
+
+    dist.init_process_group()
+    rank = dist.get_rank()
+    setup_logger(rank)
+    config = AutoConfig.from_pretrained(args.model_name)
+    
+    with rank0_first():
+        data_provider = DistributedDataProvider(args, config)
+    
+    dist.destroy_process_group()
+
+if __name__ == "__main__":
+    main()

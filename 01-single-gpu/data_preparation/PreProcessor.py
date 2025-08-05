@@ -50,7 +50,7 @@ class PreProcessor:
 
 
     def encode(self, text, **kwargs):
-        return self.tokenizer(text, **kwargs)
+        return self.tokenizer.encode(text, **kwargs)
 
     def decode(self, token_ids, **kwargs):
         return self.tokenizer.decode(token_ids, **kwargs)
