@@ -55,10 +55,19 @@ def main():
         exp_dir.mkdir(parents=True, exist_ok=True)
         logging.info(f"Finished setting up directory")
     dist.barrier()
+    
+    # Load data
+    with rank0_first():
+        config = AutoConfig.from_pretrained(args.model_name, use_cache=False)
+        distributed_data_provider = DistributedDataProvider(args=args, config=config)
+        distributed_train_loader, distributed_test_loader = distributed_data_provider.get_loaders()
 
     # Load model to CPU using rank 0 to avoid double loading and memory issues
     if rank == 0:
         model = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=args.dtype, device_map="cpu")
+        # Adapt model embedding size by increased vocab size
+        if distributed_data_provider.pad_is_added():
+            model.resize_token_embeddings(distributed_data_provider.get_vocab_size())
         full_state_dict = model.state_dict()
     else:
         full_state_dict = None
@@ -66,8 +75,11 @@ def main():
     # Load empty model shell on each GPU with only shape specs of params
     with rank0_first():
         with torch.device("meta"):
-            config = AutoConfig.from_pretrained(args.model_name, use_cache=False)
-            model = AutoModelForCausalLM.from_config(config, torch_dtype=args.dtype)
+            # Adapt embedding layer according to tokenizer change
+            # Change config as in "meta" mode no other change possible
+            if distributed_data_provider.pad_is_added():
+                config.vocab_size = distributed_data_provider.get_vocab_size()
+            model = AutoModelForCausalLM.from_config(config, torch_dtype=args.dtype) 
     
     # Prepare Sharding Threshold
     # Wrap policy function which defines based on which criteria modules will be wrapped 
@@ -101,15 +113,6 @@ def main():
             model_state_dict=full_state_dict,
             options=dcp_options
             )
-
-    #with rank0_first():
-    #    distributed_data_provider = DistributedDataProvider(args=args, config=config)
-    #    distributed_train_loader, distributed_test_loader = distributed_data_provider.get_loaders()
-    
-    # Adapt model embedding size by increased vocab size
-    # if distributed_data_provider.pad_is_added():
-    #    model.resize_token_embeddings(distributed_data_provider.get_vocab_size())
-
 
     logging.info(f"Memory stats: {get_memory_stats(device)}")
     
