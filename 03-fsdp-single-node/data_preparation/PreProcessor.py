@@ -22,7 +22,7 @@ class PreProcessor:
         self.__full_text_col_name = "full_text"
         self.__label_col_name = "labels"
         self.__set_pad_token()
-        self.__max_length = self.__get_max_length()
+        self.__max_length = self.__set_max_length()
         self.is_pad_added = False
 
 
@@ -53,18 +53,21 @@ class PreProcessor:
     def get_ignore_token_id(self):
         return self.__ignore_token_id
     
+    def pad_is_added(self):
+        return self.__pad_is_added
+
+    def get_vocab_size(self):
+        return len(self.__tokenizer)
+
+    def get_max_length(self):
+        return self.__max_length
+    
     def __set_pad_token(self):
         if self.__tokenizer.pad_token_id is None:
             self.__tokenizer.add_special_tokens({"pad_token": "[PAD]"})
             self.__pad_is_added = True
 
         logging.info(f"\n Using padtoken: {self.__tokenizer.pad_token}")
-
-    def pad_is_added(self):
-        return self.__pad_is_added
-
-    def get_vocab_size(self):
-        return len(self.__tokenizer)
 
     def __preprocess(self, dataset):
         return dataset\
@@ -105,7 +108,7 @@ class PreProcessor:
     def __tokenize_batch(self, batch: Dict[str, List]) -> Dict[str, List]:
         return self.__tokenizer(batch[self.__full_text_col_name])
 
-    def __get_max_length(self) -> int:
+    def __set_max_length(self) -> int:
         return min(
             self.__args.max_length,
             self.__tokenizer.model_max_length,

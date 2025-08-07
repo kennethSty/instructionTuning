@@ -13,6 +13,6 @@ torchrun --standalone \
 	--dataset_name "tatsu-lab/alpaca" \
 	--instruction_col_name instruction \
 	--response_col_name output \
-	--test_split 0.1		
+	--test_split 0.1 
 
 echo "Training completed at: $(date)"

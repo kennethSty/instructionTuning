@@ -9,7 +9,7 @@ from data_preparation.PreProcessor import PreProcessor
 
 class DistributedDataProvider:
     def __init__(self, args, config):
-        self.__preprocessor = PreProcessor(args, config)
+        self.preprocessor = PreProcessor(args, config)
         self.__rank = dist.get_rank()
         self.__build_loaders(args)
         self.log_data_sanity_check()
@@ -18,19 +18,19 @@ class DistributedDataProvider:
         return self.__train_loader, self.__test_loader
   
     def pad_is_added(self):
-        return self.__preprocessor.pad_is_added()
+        return self.preprocessor.pad_is_added()
 
     def get_pad_token_id(self):
-        return self.__preprocessor.get_pad_token_id()
+        return self.preprocessor.get_pad_token_id()
 
     def get_eos_token_id(self):
-        return self.__preprocessor.get_eos_token_id()
+        return self.preprocessor.get_eos_token_id()
 
     def get_ignore_token_id(self):
-        return self.__preprocessor.get_ignore_token_id()
+        return self.preprocessor.get_ignore_token_id()
 
     def get_vocab_size(self):
-        return self.__preprocessor.get_vocab_size()
+        return self.preprocessor.get_vocab_size()
 
     def get_num_train_batches(self):
         return len(self.__train_loader)
@@ -46,15 +46,21 @@ class DistributedDataProvider:
             logging.info(log)
             return
 
+    def batch_encode(self, texts, **kwargs):
+        return self.preprocessor.batch_encode(texts, **kwargs)
+
+    def batch_decode(self, token_id_batch, **kwargs):
+        return self.preprocessor.batch_decode(token_id_batch, **kwargs)
+
     def encode(self, text, **kwargs):
-        return self.__preprocessor.encode(text, **kwargs)
+        return self.preprocessor.encode(text, **kwargs)
 
     def decode(self, token_ids, **kwargs):
-        return self.__preprocessor.decode(token_ids, **kwargs)
+        return self.preprocessor.decode(token_ids, **kwargs)
 
     def __build_loaders(self, args: Dict):
         assert args.test_split <= 1.0 and args.test_split >= 0
-        data = self.__preprocessor.get_preprocessed_data()
+        data = self.preprocessor.get_preprocessed_data()
         split = data.train_test_split(test_size=args.test_split)
         
         # Apply CLI args to set collat function parameters
@@ -91,7 +97,7 @@ class DistributedDataProvider:
             shift_labels=False, 
             mask_instruction=False) -> Tuple[torch.Tensor, torch.Tensor]:
         max_batch_size = max(len(i["input_ids"]) for i in batch)
-        pad_token_id = self.__preprocessor.get_pad_token_id()
+        pad_token_id = self.preprocessor.get_pad_token_id()
         input_ids_list, label_ids_list = [], []
 
         for item in batch:
@@ -102,22 +108,22 @@ class DistributedDataProvider:
 
             if mask_instruction:
                 response_start_idx = 0
-                full_text = self.__preprocessor.decode(input_ids)
+                full_text = self.preprocessor.decode(input_ids)
                 response_text = "###Response:\n"
                 instruction_end = full_text.find(response_text)
                 if instruction_end != -1:
                     instruction_end_index = instruction_end + len(response_text)
                     instruction_part = full_text[:instruction_end_index]
-                    instruction_tokens = self.__preprocessor.encode(instruction_part)
+                    instruction_tokens = self.preprocessor.encode(instruction_part)
                     response_start_idx = len(instruction_tokens)
 
                 if response_start_idx > 0:
-                    label_ids[:response_start_idx] = self.__preprocessor.get_ignore_token_id()
+                    label_ids[:response_start_idx] = self.preprocessor.get_ignore_token_id()
 
             #mask padding
             mask = (label_ids == pad_token_id)
             if torch.nonzero(mask).numel() > 1:
-                label_ids[mask] = self.__preprocessor.get_ignore_token_id()
+                label_ids[mask] = self.preprocessor.get_ignore_token_id()
             
             input_ids_list.append(input_ids)
             label_ids_list.append(label_ids)
@@ -154,10 +160,10 @@ class DistributedDataProvider:
         return log
 
     def __decode_inputs(self, batch: Tuple[torch.Tensor]):
-        return self.__preprocessor.batch_decode(batch[0])
+        return self.preprocessor.batch_decode(batch[0])
 
     def __decode_labels(self, batch: Tuple[torch.Tensor]):
         # Ignore token id cannot be decoded. Needs to be replaced for decoding and printing.
         target = batch[1].clone()
-        target[target == self.__preprocessor.get_ignore_token_id()] = self.__preprocessor.get_pad_token_id()
-        return self.__preprocessor.batch_decode(target)
+        target[target == self.preprocessor.get_ignore_token_id()] = self.preprocessor.get_pad_token_id()
+        return self.preprocessor.batch_decode(target)

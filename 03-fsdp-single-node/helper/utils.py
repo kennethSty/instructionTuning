@@ -26,8 +26,8 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max_length", default=1024, type=int)
     parser.add_argument("--ignore_token_id", default=-100, type=int)
     parser.add_argument("--seed", default=42, type=int)
-    parser.add_argument("--checkp_freq", default=500)
-    parser.add_argument("--log_freq", default=100)
+    parser.add_argument("--checkp_freq", default=500, type=int)
+    parser.add_argument("--log_freq", default=100, type=int)
     parser.add_argument("--mask_instruction", default=False, type=bool, 
                         help="If true instruction part of will be masked in labels")
     parser.add_argument("--shift_labels", default=False, 
@@ -54,17 +54,23 @@ def rank0_first():
     dist.barrier()
 
 
-def load_model_lr_state(model, lr_scheduler, state, exp_dir, device):
-    """Loads model, state and learning rate scheduler states from a prev. run inplace"""
-    model.load_state_dict(
-        torch.load(exp_dir/"model.pt", map_location=device, weights_only=True)
-    )
-    lr_scheduler.load_state_dict(
-        torch.load(exp_dir/"lr_scheduler.pt", map_location=device, weights_only=True)
-    )
+def setup_directories(exp_dir, rank):
+    """
+    Sets up the root directory for storing run-specific data.
+    Creates subdirectories for each rank, to later store model and optimizer shards.
+    """
+    if rank == 0:
+        logging.info(f"Setting up experiment root dir: {exp_dir}")
+        exp_dir.mkdir(parents=True, exist_ok=True)
+        logging.info(f"Finished setting up root dir")
+    dist.barrier()
 
-    with open(exp_dir/"state.json") as f:
-        state = json.load(f)
+    rank_spec_dir = exp_dir / f"rank-{rank}"
+    logging.info(f"Setting up rank-specific dir: {rank_spec_dir}")
+    rank_spec_dir.mkdir(parents=True, exist_ok=True)
+    logging.info(f"Finished setting up rank specific dir")
+    dist.barrier()
+
 
 def log_and_update_state(state, timers, step_i, lr_scheduler, train_loader, args, rank, world_size, device):
     tokens_per_step = world_size * args.batch_size * args.max_length
@@ -108,14 +114,3 @@ def get_memory_stats(device):
     torch.cuda.reset_peak_memory_stats(device)
     return memory_info_dict
 
-def save_checkpoint(model, lr_scheduler, optimizer, exp_dir, state):
-    logging.info("Saving checkpoints for model and lr_scheduler")
-    if not isinstance(optimizer, ZeroRedundancyOptimizer):
-        logging.info("Saving optmizer too as it is not sharded")
-        torch.save(optimizer.state_dict(), exp_dir/"optimizer.pt")
-    else: 
-        logging.info("Warning: not saving optimizer as it is sharded")
-    torch.save(model.state_dict(), exp_dir/"model.pt")
-    torch.save(lr_scheduler, exp_dir/"lr_scheduler.pt")
-    with open(exp_dir/"state.json", "w") as f:
-        json.dump(state, f)

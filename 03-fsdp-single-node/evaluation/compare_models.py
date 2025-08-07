@@ -3,52 +3,25 @@ from transformers import AutoModelForCausalLM, AutoConfig, AutoTokenizer
 import torch
 import logging 
 import torch.distributed as dist
-from helper.logger import setup_logger
 from torch.distributed.elastic.multiprocessing.errors import record
 
+from helper.generate_utils import generate_response
+from helper.logger import setup_logger
 from helper.utils import get_parser
 from data_preparation.DistributedDataProvider import DistributedDataProvider
 
-def generate_response(model, preprocessor, instruction, device, model_name="Model"):
-    """Generate response for a given instruction"""
-    system_text = "Below is an instruction that describes a task. Write a response that completes the request.\n\n"
-    instruction_text = f"###Instruction:\n{instruction}\n\n###Response:\n"
-    input_text_with_format = f"{system_text}{instruction_text}"
-    input_ids_formatted = preprocessor.encode(
-        input_text_with_format, return_tensors="pt"
-    ).to(device)
-
-    prompt_log = (
-        f"\n{'-'*20} {model_name} {'-'*20}\n"
-        f"Input: {instruction}\n"
-    )
-    logging.info(prompt_log)
-
-    model.eval()
-    with torch.no_grad():
-        output = model.generate(
-            **input_ids_formatted,
-            max_length=input_ids_formatted.input_ids.shape[1] + 100,
-            do_sample=False,
-            pad_token_id=preprocessor.get_pad_token_id(),
-            eos_token_id=preprocessor.get_eos_token_id(),
-            repetition_penalty=1.1
-        )
-
-    generated_tokens = output[0][input_ids_formatted.input_ids.shape[1]:]
-    generated_text = preprocessor.decode(generated_tokens, skip_special_tokens=True)
-    
-    logging.info(f"Response: {generated_text}")
-    return generated_text
-
-def test_instructions(finetuned_model, preprocessor, device, base_model=None):
+def test_instructions(fsdp_model, distributed_data_provider, device):
     header = (
         f"\n{'='*80}\n"
         f"*****************TEST INSTRUCTION FOLLOWING ABILITY:********************\n"
         f"{'='*80}"
     )
-    logging.info(header)
+    
+    rank = dist.get_rank()
+    if rank == 0:
+        logging.info(header)
 
+    _, distributed_test_loader = distributed_data_provider.get_loaders()
     instructions_from_training_set = [
         "Research and summarize the common practices for caring of rabbits.",
         "Generate a list of 5 books that discuss the theme of resilience",
@@ -58,79 +31,22 @@ def test_instructions(finetuned_model, preprocessor, device, base_model=None):
     ]
 
     for i, instruction in enumerate(instructions_from_training_set):
-        logging.info(f"\n{'='*80}\nTEST {i+1}:\n{'='*80}")
+        dist.barrier() # Enforces pretty test output
+        if rank == 0: logging.info(f"\n{'='*80}\nTEST {i+1}:\n{'='*80}")
+        response = generate_response(
+                fsdp_model=fsdp_model,
+                raw_instruction_text=instruction,
+                device=device,
+                preprocessor=distributed_data_provider.preprocessor
+                )
+        logging.info(f"###Generated Text: {response}")
+        dist.barrier()
 
-        if base_model is not None:
-            generate_response(
-                base_model, preprocessor, instruction, device, 
-                "PRETRAINED MODEL"
-            )
-
-        generate_response(
-            finetuned_model, preprocessor, instruction, device,
-            "INSTRUCTION-TUNED MODEL"
-        )
-
-        logging.info(f"\n{'='*50}")
-
-@record
-def main():
-    dist.init_process_group()
-    rank = dist.get_rank()
-    setup_logger(rank=rank)
-    
-    parser = get_parser()
-    args = parser.parse_args()
-    config = AutoConfig.from_pretrained(args.model_name)
-    exp_dir = Path(f"{args.save_dir}/{args.experiment_name}")
-    device = torch.device("cuda")
-    dtype = torch.float32
-
-    intro_log = (
-        f"{'='*80}\n"
-        f"MODEL COMPARISON: Pretrained vs Instruction-Tuned\n"
+    footer = (
+        f"\n{'='*80}\n"
+        f"*****************FINISH TEST:********************\n"
         f"{'='*80}"
     )
-    logging.info(intro_log)
+
+    if rank == 0: logging.info(footer)
     
-    preprocessor = PreProcessor(args, config)
-
-    logging.info("\nLoading original pretrained model...")
-    base_model = AutoModelForCausalLM.from_pretrained(
-        args.model_name, 
-        torch_dtype=dtype
-    ).to(device)
-    logging.info(f"Loaded pretrained {args.model_name}")
-
-    logging.info(f"\nLoading instruction-tuned model from {exp_dir}...")
-    if not (exp_dir / "model.pt").exists():
-        logging.error(f"ERROR: No trained model found at {exp_dir}/model.pt")
-        logging.error("Please make sure you've trained a model first.")
-        return
-
-    finetuned_model = AutoModelForCausalLM.from_pretrained(
-        args.model_name, 
-        torch_dtype=dtype
-    ).to(device)
-    if preprocessor.pad_is_added():
-        finetuned_model.resize_token_embeddings(preprocessor.get_vocab_size())
-    
-    # Load weights into model (remove module. appended by DistributedDataParallel in keys)
-    state_dict = torch.load(exp_dir/"model.pt", map_location=device, weights_only=True)
-    state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
-    finetuned_model.load_state_dict(state_dict)
-    finetuned_model.to(device)
-    logging.info(f"Loaded instruction-tuned model")
-
-    test_instructions(
-        finetuned_model=finetuned_model, 
-        preprocessor=preprocessor,
-        device=device,
-        base_model=base_model
-    )
-
-    logging.info(f"\n{'='*80}\nCOMPARISON COMPLETE!\n{'='*80}")
-    dist.destroy_process_group()
-
-if __name__ == "__main__":
-    main()
