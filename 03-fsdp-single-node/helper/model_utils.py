@@ -156,7 +156,7 @@ def load_and_shard_pretrained(args, config, rank, local_rank, pad_is_added, voca
             module=model,
             device_id=local_rank,
             sync_module_states=False, #sync not needed as pretrained weights are same across ranks
-            auto_wrap_policy=size_based_auto_wrap_policy,
+            auto_wrap_policy=size_based_wrap_policy,
             sharding_strategy=ShardingStrategy.FULL_SHARD, #equivalent to ZeRO3
             cpu_offload=CPUOffload(offload_params=args.offload_params_to_cpu)
             )
