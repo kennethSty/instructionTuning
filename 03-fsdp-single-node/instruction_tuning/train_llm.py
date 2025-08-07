@@ -10,7 +10,7 @@ from transformers import AutoModelForCausalLM, AutoConfig
 from torch.optim import AdamW
 
 from evaluation.compare_models import test_instructions
-from helper.model_utils import load_and_shard_model, resume_states, save_checkpoint
+from helper.model_utils import load_and_shard_pretrained, resume_states, save_checkpoint
 from helper.logger import setup_logger
 from helper.utils import get_parser, setup_directories, rank0_first, log_and_update_state, get_memory_stats
 from helper.LocalTimer import LocalTimer
@@ -43,7 +43,7 @@ def main():
 
     # Load on cpu via rank0, shard it and dispatch the sharded weights to other ranks
     # Internally params are changed from Tensor to DTensor (D = distributed)
-    fsdp_model = load_and_shard_model(
+    fsdp_model = load_and_shard_pretrained(
             args=args,
             config=config, 
             rank=rank, 
@@ -188,7 +188,8 @@ def train_fsdp_model(
                 dist.barrier()
                 test_instructions(
                     fsdp_model=fsdp_model,
-                    distributed_data_provider=distributed_data_provider,
+                    model_name="Current Training State",
+                    preprocessor=distributed_data_provider.preprocessor,
                     device=device
                     )
                 dist.barrier()
@@ -207,7 +208,8 @@ def train_fsdp_model(
         dist.barrier()
         test_instructions(
             fsdp_model=fsdp_model,
-            distributed_data_provider=distributed_data_provider,
+            model_name="Final Training State",
+            preprocessor=distributed_data_provider.preprocessor,
             device=device
             )
         dist.barrier()

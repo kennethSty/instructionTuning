@@ -8,7 +8,6 @@ def generate_response(fsdp_model, raw_instruction_text, preprocessor, device, ma
     input_ids_formatted = preprocessor.encode(
         input_text_with_format, return_tensors="pt"
     ).to(device)
-    print("Shape: ", input_ids_formatted.shape)
 
     output_ids = generate_token_ids_batch(
             fsdp_model=fsdp_model, 
@@ -22,7 +21,6 @@ def generate_response(fsdp_model, raw_instruction_text, preprocessor, device, ma
     
     num_instruction_tokens = input_ids_formatted.shape[1]
     response_token_ids = output_ids.squeeze()[num_instruction_tokens:]
-    print(response_token_ids.shape)
     return preprocessor.decode(response_token_ids)
     
 

@@ -9,6 +9,7 @@ from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
 from torch.distributed.checkpoint import save, load
 from torch.distributed.checkpoint.state_dict import (
         set_model_state_dict,
+        get_model_state_dict,
         get_state_dict,
         StateDictOptions
         )
@@ -88,7 +89,37 @@ def resume_states(fsdp_model, optimizer, lr_scheduler):
         )
 
 
-def load_and_shard_model(args, config, rank, local_rank, pad_is_added, vocab_size, device):   
+def load_sharded_from_local(fsdp_model, exp_dir):
+    """
+    Loads the weights of a sharded model stored locally via "save_checkpoint" 
+    into a sharded model state created from a huggingface instance created using model_name.
+    """
+    
+    checkpoint_options = StateDictOptions(full_state_dict=False, cpu_offload=True)
+    sharded_state_dict = get_model_state_dict(fsdp_model, options=checkpoint_options)
+    
+    logging.info(f"Loading finetuned shards from {exp_dir/'checkpoint'}")
+    if not (exp_dir/"checkpoint").exists():
+        raise FileNotFoundError("No checkpoint exists at {exp_dir/'checkpoint'}")
+    
+    dist.barrier()
+
+    # Assumption: Each rank automatically loads the right shard
+    load(
+        dict(model=sharded_state_dict),
+        checkpoint_id = exp_dir / "checkpoint"
+        )
+    dist.barrier()
+    set_model_state_dict(
+        model=fsdp_model,
+        model_state_dict=sharded_state_dict,
+        options=checkpoint_options
+        )
+    dist.barrier()
+    return fsdp_model
+
+
+def load_and_shard_pretrained(args, config, rank, local_rank, pad_is_added, vocab_size, device):   
     """
     Utility function to load a pretrained model from huggingface and shard it 
     using FSDP.

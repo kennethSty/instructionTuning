@@ -3,11 +3,6 @@
 # Usage: ./run_scripts/run_compare.sh experiment_name
 # Example: ./run_scripts/run_compare.sh ddp-gpt2-2025-08-01-13-22-40
 
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 <experiment_name>"
-    echo "Example: $0 ddp-gpt2-2025-08-01-13-22-40"
-    exit 1
-fi
 
 EXPERIMENT_NAME=$1
 
