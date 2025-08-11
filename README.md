@@ -6,8 +6,10 @@ This repository (work in progress) explores **instruction tuning techniques** fo
 
 Each stage of the project is organized in its own directory: 
 ```
-├── 01-single-gpu/ 
-└── ... work in progress .. 
+├── 01-single-gpu/ # Instruction tuning on a single GPU
+└── 02-dataparallel-single-node/ # Instruction tuning with Data Parallelism on up to 8 GPUs
+└── 03-fsdp-single-node/ # Instruction tuning with Fully Sharded Data Parallelism on up to 8 GPUs 
+
 ```
 To run a specific stage, navigate to the corresponding folder (e.g., `01-single-gpu`) and follow the usage instructions in that folder’s `README.md`.
 
@@ -23,3 +25,7 @@ Dependencies and environment setup are described in the subdirectory READMEs. Ty
 The code builds upon:
 - [*LLMs from Scratch*](https://github.com/rasbt/llms-from-scratch) by **Sebastian Raschka**
 - [*Distributed training guide*](https://github.com/LambdaLabsML/distributed-training-guide) from **Lambda Labs**
+
+
+**Note: 
+All training hyperparameters such as learning rate, batch size, number of epochs were chosen for illustration purposes and not further optimized. 
