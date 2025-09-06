@@ -1,7 +1,9 @@
 *.png
 *.pt
 *wandb/
+*data/
 *outputs/
 *.nfs*
 *__pycache__/
 error.json
+*.env

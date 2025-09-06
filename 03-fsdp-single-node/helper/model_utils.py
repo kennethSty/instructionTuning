@@ -9,6 +9,7 @@ from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
 from torch.distributed.checkpoint import save, load
 from torch.distributed.checkpoint.state_dict import (
         set_model_state_dict,
+        set_state_dict,
         get_model_state_dict,
         get_state_dict,
         StateDictOptions
@@ -61,7 +62,7 @@ def resume_states(fsdp_model, optimizer, lr_scheduler):
     
     # Load current state of sharded model params and optimizer states
     sharded_model_state, sharded_optimizer_state = get_state_dict(
-        model, optimizer, options=checkpoint_options
+        fsdp_model, optimizer, options=checkpoint_options
         )
 
 
@@ -74,7 +75,7 @@ def resume_states(fsdp_model, optimizer, lr_scheduler):
 
     # Set sharded state dicts into sharded model and optimizer instance
     set_state_dict(
-        model,
+        fsdp_model,
         optimizer,
         model_state_dict=sharded_model_state,
         optim_state_dict=sharded_optimizer_state,
