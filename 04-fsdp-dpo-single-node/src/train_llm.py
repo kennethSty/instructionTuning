@@ -3,6 +3,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from dotenv import load_dotenv
 import os
+from transformers.models.bit.modeling_bit import get_padding_value
 import wandb
 from datasets import load_dataset
 from contextlib import contextmanager
@@ -18,9 +19,10 @@ from src.regul_dpo_trainer import RegulDPOTrainer
 from utils.distributed_utils import rank0_first
 from utils.model_utils import load_model_rank0
 from utils.data_utils import load_preference_dataset
+from utils.utils import get_parser
 
 def get_dpo_config(
-    output_dir="/data/Qwen2-4B-DPO-Regul", 
+    output_dir="data/Qwen2-0.5BB-DPO-Regul", 
     run_name: str="dpo_regul_exp", 
     ld_alpha: Optional[float]=None
     ):
@@ -54,7 +56,7 @@ def test_regul_dpo():
         wandb.init(mode="disabled")
 
     args_dpo = get_dpo_config(
-        output_dir="/data/Qwen2-0.5B-DPO-Regul", 
+        output_dir="data/Qwen2-0.5B-DPO-Regul", 
         run_name="dpo_regul_exp", 
         )
 
@@ -112,16 +114,23 @@ def get_hf_token():
 
 @record
 def main():
+    parser = get_parser()
+    args = parser.parse_args()
+
     local_rank = int(os.environ.get("LOCAL_RANK"))
     device = torch.device(f"cuda:{local_rank}")
     logging.info("Local Rank:", local_rank)
     torch.cuda.set_device(device)
+    
     dist.init_process_group(backend='nccl', device_id=device)
     logging.info("Testing Length Desensitization")
-    test_ld_dpo()
-    dist.barrier()
-    logging.info("Test LD Done")
-    test_regul_dpo()
+    if args.length_strategy == "ld":
+        test_ld_dpo()
+        dist.barrier()
+    elif args.length_strategy == "regul":
+        test_regul_dpo()
+    else:
+        raise AttributeError("Specify --length_strategy")
     dist.destroy_process_group() 
 
 

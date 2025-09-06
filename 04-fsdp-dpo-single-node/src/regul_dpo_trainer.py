@@ -67,6 +67,7 @@ class RegulDPOTrainer(DPOTrainer):
         model: nn.Module,
         inputs: dict[str, Union[torch.Tensor, Any]],
         return_outputs: bool = False,
+        num_items_in_batch=None,
     ) -> Union[torch.Tensor, tuple[torch.Tensor, dict[str, float]]]:
         loss, metrics = self.get_batch_loss_metrics(model, inputs, train_eval="train")
         loss = loss.to(self.args.device)
